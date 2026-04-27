@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>☣ DEAD ZONE v4</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Creepster&family=Share+Tech+Mono&display=swap');
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blood:#cc0000;--toxic:#39ff14;--dark:#080808;
+  --gold:#f0c040;--text:#bbb;--panel:#0f0f0f;
+}
+body{background:var(--dark);color:var(--text);font-family:'Share Tech Mono',monospace;overflow:hidden;height:100vh;display:flex;align-items:center;justify-content:center}
+
+/* ── LOBBY ── */
+#lobby{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:460px;width:95%;padding:20px}
+#lobby h1{font-family:'Creepster',cursive;font-size:clamp(2.6rem,7vw,5rem);color:var(--blood);text-shadow:0 0 30px #ff000055;letter-spacing:4px;animation:flicker 4s infinite}
+.sub{color:var(--toxic);font-size:.68rem;letter-spacing:3px;text-transform:uppercase}
+#name-input{background:#111;border:2px solid var(--blood);color:var(--toxic);font-family:'Share Tech Mono',monospace;font-size:.95rem;padding:9px 16px;width:100%;text-align:center;outline:none;letter-spacing:2px}
+#name-input::placeholder{color:#2a2a2a}
+#play-btn{background:var(--blood);border:none;color:#fff;font-family:'Creepster',cursive;font-size:1.4rem;padding:11px 0;cursor:pointer;letter-spacing:3px;width:100%;transition:all .2s;box-shadow:0 0 18px #cc000044}
+#play-btn:hover{background:#ff1111;transform:scale(1.02)}
+.hints{display:grid;grid-template-columns:1fr 1fr;gap:5px;width:100%;font-size:.65rem;color:#333;border:1px solid #181818;padding:9px 12px;background:#090909}
+.hints span{color:#666}
+@keyframes flicker{0%,100%{opacity:1}92%{opacity:1}93%{opacity:.25}95%{opacity:1}97%{opacity:.5}98%{opacity:1}}
+
+/* ── GAME ── */
+#game{display:none;position:relative;width:100vw;height:100vh}
+canvas{display:block;cursor:crosshair}
+
+/* ── HUD ── */
+#hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:9px 12px;pointer-events:none;gap:8px}
+.hb{background:rgba(0,0,0,.82);border:1px solid #1a1a1a;padding:6px 10px}
+.hl{font-size:.52rem;color:#333;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.bw{background:#0e0e0e;height:6px;border-radius:1px;overflow:hidden;width:100px}
+.bf{height:100%;border-radius:1px;transition:width .12s}
+#hp-f{background:var(--blood)}
+#ar-f{background:#1e90ff}
+.hv{font-size:.85rem;margin-top:2px}
+#center-hud{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:3px}
+#day-hud{font-family:'Creepster',cursive;font-size:1.3rem;letter-spacing:2px}
+#phase-bar-wrap{background:#0e0e0e;height:4px;width:130px;border-radius:1px;overflow:hidden}
+#phase-bar{height:100%;border-radius:1px;transition:width .3s}
+#money-hud{font-size:.8rem;color:var(--gold)}
+
+/* ── WEAPON BAR ── */
+#weapon-bar{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.82);border:1px solid #1a1a1a;padding:6px 14px;pointer-events:none}
+#weapon-img{width:36px;height:18px;object-fit:contain;image-rendering:pixelated;filter:brightness(1.2)}
+#weapon-name{font-size:.8rem;color:#ccc}
+#ammo-info{font-size:.8rem;display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.ammo-line{font-size:.72rem}
+
+/* ── AMMO INVENTORY ── */
+#ammo-inv{position:absolute;bottom:18px;left:14px;background:rgba(0,0,0,.8);border:1px solid #1a1a1a;padding:6px 10px;font-size:.65rem;pointer-events:none}
+#ammo-inv h4{color:#333;letter-spacing:2px;font-size:.52rem;margin-bottom:4px}
+.ai-row{display:flex;justify-content:space-between;gap:10px;padding:1px 0}
+.ai-name{color:#444}
+.ai-count{color:#888}
+.ai-count.has{color:var(--gold)}
+
+/* ── PICKUP PROMPT ── */
+#pickup-prompt{position:absolute;bottom:66px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);border:1px solid #2a2a2a;padding:5px 14px;font-size:.72rem;color:#888;pointer-events:none;display:none;white-space:nowrap}
+#pickup-prompt span{color:var(--toxic)}
+
+/* ── SCOREBOARD ── */
+#sb{position:absolute;top:70px;right:12px;background:rgba(0,0,0,.82);border:1px solid #1a1a1a;padding:6px 10px;min-width:175px;font-size:.65rem;pointer-events:none}
+#sb h3{color:#222;letter-spacing:2px;font-size:.52rem;margin-bottom:4px}
+.sr{display:flex;justify-content:space-between;gap:6px;padding:2px 0}
+.sn{max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr.me .sn{color:var(--toxic)}
+.sr.dead .sn{color:#2a2a2a;text-decoration:line-through}
+
+/* ── GANG PANEL ── */
+#gang-panel{position:absolute;top:70px;left:12px;background:rgba(0,0,0,.82);border:1px solid #1a1a1a;padding:6px 10px;min-width:165px;font-size:.65rem}
+#gang-panel h3{color:#222;letter-spacing:2px;font-size:.52rem;margin-bottom:4px}
+#my-gang-info{margin-bottom:5px;font-size:.7rem}
+#gang-btns{display:flex;gap:4px;margin-bottom:5px;flex-wrap:wrap}
+.gpill{background:#0e0e0e;border:1px solid #1e1e1e;color:#444;font-family:'Share Tech Mono',monospace;font-size:.6rem;padding:2px 7px;cursor:pointer;letter-spacing:1px;transition:all .15s;white-space:nowrap}
+.gpill:hover{border-color:#444;color:#888}
+.gpill.danger{border-color:#331111;color:#661111}
+.gpill.danger:hover{border-color:var(--blood);color:var(--blood)}
+#gang-list-wrap{max-height:120px;overflow-y:auto}
+.gang-row{display:flex;justify-content:space-between;gap:5px;padding:2px 0;cursor:pointer;transition:opacity .15s}
+.gang-row:hover{opacity:.7}
+
+/* ── GANG MODAL ── */
+#gang-modal{display:none;position:absolute;inset:0;background:rgba(0,0,0,.9);z-index:30;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#gang-modal.open{display:flex}
+#gang-modal h2{font-family:'Creepster',cursive;font-size:1.8rem;color:#ccc;letter-spacing:3px}
+#gang-modal input{background:#0e0e0e;border:2px solid #222;color:var(--toxic);font-family:'Share Tech Mono',monospace;font-size:.9rem;padding:7px 14px;width:220px;text-align:center;outline:none;letter-spacing:2px}
+#gang-modal input:focus{border-color:var(--toxic)}
+.color-picker{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:240px}
+.cpick{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.cpick.sel{border-color:#fff;transform:scale(1.2)}
+.modal-btns{display:flex;gap:8px}
+.mbtn{background:#0e0e0e;border:1px solid #222;color:#666;font-family:'Share Tech Mono',monospace;font-size:.7rem;padding:6px 16px;cursor:pointer;letter-spacing:2px;transition:all .15s}
+.mbtn:hover{border-color:#888;color:#ccc}
+.mbtn.primary{border-color:var(--toxic);color:var(--toxic)}
+.mbtn.primary:hover{background:#0a1a0a}
+
+/* ── SHOP ── */
+#shop{display:none;position:absolute;inset:0;background:rgba(0,0,0,.92);z-index:30;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+#shop.open{display:flex}
+#shop h2{font-family:'Creepster',cursive;font-size:2rem;color:var(--gold);letter-spacing:3px}
+#shop-bal{color:var(--gold);font-size:.85rem;letter-spacing:2px}
+.skin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px;max-width:580px;width:92%;max-height:50vh;overflow-y:auto;padding:2px}
+.skin-card{background:#0e0e0e;border:1px solid #1a1a1a;padding:9px 7px;text-align:center;cursor:pointer;transition:all .15s}
+.skin-card:hover{border-color:#2a2a2a}
+.skin-card.owned{border-color:#1e4060}
+.skin-card.equipped{border-color:var(--gold);background:#151200}
+.skin-dot{width:32px;height:32px;border-radius:50%;margin:0 auto 6px;border:3px solid #1a1a1a}
+.skin-name{font-size:.68rem;color:#888;margin-bottom:2px}
+.skin-cost{font-size:.72rem;color:var(--gold)}
+.skin-tag{font-size:.55rem;background:var(--toxic);color:#000;padding:1px 4px;margin-top:2px;display:inline-block}
+.shop-close{background:none;border:1px solid #222;color:#444;font-family:'Share Tech Mono',monospace;padding:5px 18px;cursor:pointer;letter-spacing:2px;font-size:.68rem;transition:all .15s}
+.shop-close:hover{border-color:var(--blood);color:var(--blood)}
+
+/* ── DEATH ── */
+#death{display:none;position:absolute;inset:0;background:rgba(0,0,0,.88);flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:20}
+#death.open{display:flex}
+#death h2{font-family:'Creepster',cursive;font-size:3.2rem;color:var(--blood);text-shadow:0 0 30px #ff000055;animation:flicker 2s infinite}
+#death p{color:#444;font-size:.78rem;letter-spacing:1px}
+.death-btns{display:flex;gap:10px}
+.dbtn{background:#0e0e0e;border:2px solid #333;color:#555;font-family:'Creepster',cursive;font-size:1.2rem;padding:8px 22px;cursor:pointer;letter-spacing:2px;transition:all .18s}
+#respawn-btn{border-color:var(--blood);color:var(--blood)}
+#respawn-btn:hover{background:var(--blood);color:#fff}
+#menu-btn-death{border-color:#333;color:#555}
+#menu-btn-death:hover{border-color:#888;color:#aaa}
+
+/* ── BACK TO MENU BTN ── */
+#back-btn{position:absolute;top:9px;right:12px;background:#0e0e0e;border:1px solid #222;color:#444;font-family:'Share Tech Mono',monospace;font-size:.6rem;padding:4px 10px;cursor:pointer;letter-spacing:2px;transition:all .15s;pointer-events:all;z-index:10}
+#back-btn:hover{border-color:#888;color:#aaa}
+
+/* ── PHASE MSG ── */
+#phase-msg{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);font-family:'Creepster',cursive;font-size:2rem;color:#fff;text-shadow:0 0 20px #000;pointer-events:none;opacity:0;transition:opacity .5s;text-align:center;white-space:nowrap;z-index:5}
+
+/* ── NO AMMO ── */
+#no-ammo-flash{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Creepster',cursive;font-size:1.4rem;color:#ff4757;pointer-events:none;opacity:0;transition:opacity .3s;text-align:center}
+
+/* ── NOTIFS ── */
+#notif{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;width:290px}
+.nm{background:rgba(0,0,0,.85);border-left:3px solid var(--toxic);padding:3px 10px;font-size:.7rem;color:#888;animation:fadeUp 3s forwards;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm.bad{border-color:var(--blood)}
+.nm.gold{border-color:var(--gold);color:var(--gold)}
+@keyframes fadeUp{0%{opacity:0;transform:translateY(8px)}15%{opacity:1;transform:translateY(0)}70%{opacity:1}100%{opacity:0;transform:translateY(-10px)}}
+
+/* ── MINIMAP ── */
+#mm{position:absolute;bottom:18px;right:14px;border:1px solid #1a1a1a;background:rgba(0,0,0,.7)}
+
+/* ── SHOP BTN ── */
+#shop-btn{position:absolute;bottom:18px;right:160px;background:#0e0e0e;border:1px solid #1a1a1a;color:#444;font-family:'Share Tech Mono',monospace;font-size:.65rem;padding:4px 10px;cursor:pointer;letter-spacing:2px;transition:all .15s}
+#shop-btn:hover{border-color:var(--gold);color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <h1>☣ DEAD ZONE</h1>
+  <p class="sub">Zombie Survival · Gangues · PvP · v4</p>
+  <input id="name-input" type="text" maxlength="16" placeholder="SEU NOME" autocomplete="off"/>
+  <button id="play-btn">▶ ENTRAR NA ZONA</button>
+  <div class="hints">
+    <div><span>WASD</span> — mover</div>
+    <div><span>MOUSE</span> — mirar e atirar</div>
+    <div><span>F</span> — pegar arma no chão</div>
+    <div><span>G</span> — criar gangue</div>
+    <div><span>B</span> — loja de skins</div>
+    <div><span>Base</span> — regenera vida</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <canvas id="canvas"></canvas>
+
+  <button id="back-btn">← MENU</button>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div style="display:flex;flex-direction:column;gap:5px">
+      <div class="hb"><div class="hl">❤ VIDA</div><div class="bw"><div class="bf" id="hp-f" style="width:100%"></div></div><div class="hv" id="hp-v" style="color:#e74c3c">100</div></div>
+      <div class="hb"><div class="hl">🛡 ARMOR</div><div class="bw"><div class="bf" id="ar-f" style="width:0%"></div></div><div class="hv" id="ar-v" style="color:#3498db">0</div></div>
+    </div>
+    <div id="center-hud">
+      <div id="day-hud">🌅 DIA</div>
+      <div id="phase-bar-wrap"><div id="phase-bar" style="width:100%;background:#ffeaa7"></div></div>
+      <div id="money-hud">$0</div>
+    </div>
+    <div style="min-width:110px"></div>
+  </div>
+
+  <!-- Gang panel -->
+  <div id="gang-panel">
+    <h3>⚔ GANGUES</h3>
+    <div id="my-gang-info" style="color:#2a2a2a">Sem gangue</div>
+    <div id="gang-btns">
+      <button class="gpill" id="create-gang-btn">+ CRIAR</button>
+      <button class="gpill danger" id="leave-gang-btn" style="display:none">SAIR</button>
+    </div>
+    <div id="gang-list-wrap"><div id="gang-list"></div></div>
+  </div>
+
+  <!-- Scoreboard -->
+  <div id="sb"><h3>JOGADORES</h3><div id="sb-list"></div></div>
+
+  <!-- Ammo inventory -->
+  <div id="ammo-inv">
+    <h4>MUNIÇÃO</h4>
+    <div id="ammo-inv-list"></div>
+  </div>
+
+  <!-- Weapon bar -->
+  <div id="weapon-bar">
+    <img id="weapon-img" src="" alt="" style="display:none"/>
+    <span id="weapon-name">PUNHOS</span>
+    <div id="ammo-info"></div>
+  </div>
+
+  <!-- Pickup prompt -->
+  <div id="pickup-prompt">Pressione <span>[F]</span> para pegar: <span id="pickup-name"></span></div>
+
+  <!-- Shop btn -->
+  <button id="shop-btn">🎨 SKINS [B]</button>
+
+  <!-- Minimap -->
+  <canvas id="mm" width="130" height="130"></canvas>
+
+  <!-- Phase message -->
+  <div id="phase-msg"></div>
+
+  <!-- No ammo -->
+  <div id="no-ammo-flash">SEM MUNIÇÃO!</div>
+
+  <!-- Notifs -->
+  <div id="notif"></div>
+
+  <!-- Gang modal -->
+  <div id="gang-modal">
+    <h2>⚔ CRIAR GANGUE</h2>
+    <input id="gang-name-input" type="text" maxlength="16" placeholder="NOME DA GANGUE" autocomplete="off"/>
+    <div class="color-picker" id="color-picker"></div>
+    <div class="modal-btns">
+      <button class="mbtn" id="cancel-gang-btn">CANCELAR</button>
+      <button class="mbtn primary" id="confirm-gang-btn">CRIAR</button>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div id="shop">
+    <h2>🎨 SKINS</h2>
+    <div id="shop-bal">$0</div>
+    <div class="skin-grid" id="skin-grid"></div>
+    <button class="shop-close" id="close-shop">✕ FECHAR</button>
+  </div>
+
+  <!-- Death -->
+  <div id="death">
+    <h2>💀 VOCÊ MORREU</h2>
+    <p id="death-info"></p>
+    <div class="death-btns">
+      <button class="dbtn" id="respawn-btn">↩ RENASCER</button>
+      <button class="dbtn" id="menu-btn-death">🏠 MENU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────
+const PR=14,ZR=16,BR=4;
+const PRESET_COLORS=['#ff4757','#2ed573','#1e90ff','#ffa502','#fd79a8','#a29bfe','#00cec9','#e17055'];
+const AMMO_SHORT={pistol_ammo:'PIST',shotgun_ammo:'ESCP',rifle_ammo:'RIFL',smg_ammo:'SMG',sniper_ammo:'SNIP'};
+
+// ── State ──────────────────────────────────────────────────────
+let ws,myId;
+let myHp=100,myArmor=0,myAmmoInv={},myMoney=0,myKills=0;
+let myWeapon='fists',myGangId=null,myGangColor=null,mySkin='default';
+let myUnlockedSkins=['default'];
+let dead=false,shopOpen=false,gangModalOpen=false;
+let keys={up:false,down:false,left:false,right:false};
+let aimAngle=0,mouseDown=false,lastShot=0;
+let camX=0,camY=0;
+let walls=[],trees=[],buildings=[],gangs=[],MAP_W=3200,MAP_H=3200;
+let serverWeapons={},serverSkins={},serverAmmoTypes={};
+let pendingDropId=null,selectedColor=PRESET_COLORS[0];
+let myBuildingId=null;
+
+// Render state
+let prev={P:[],Z:[],B:[],D:[]},curr={P:[],Z:[],B:[],D:[],G:[],day:true,dayProg:0};
+let lastTickTime=0;
+const TICK_MS=50;
+
+// Weapon PNG cache
+const wpnImgs={};
+function getWeaponImg(key){
+  if(wpnImgs[key])return wpnImgs[key];
+  const img=new Image();
+  img.src=`assets/${key}.png`;
+  wpnImgs[key]=img;
+  return img;
+}
+
+// ── DOM ────────────────────────────────────────────────────────
+const lobby=document.getElementById('lobby');
+const gameDiv=document.getElementById('game');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const mmCanvas=document.getElementById('mm');
+const mmCtx=mmCanvas.getContext('2d');
+
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+window.addEventListener('resize',resize);resize();
+
+// ── Connect ────────────────────────────────────────────────────
+document.getElementById('play-btn').onclick=connect;
+document.getElementById('name-input').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
+
+function connect(){
+  const name=(document.getElementById('name-input').value.trim()||'Sobrevivente').slice(0,16);
+  const proto=location.protocol==='https:'?'wss':'ws';
+  ws=new WebSocket(`${proto}://${location.host}`);
+  ws.onopen=()=>{
+    ws.send(JSON.stringify({type:'name',name}));
+    lobby.style.display='none';
+    gameDiv.style.display='block';
+    requestAnimationFrame(loop);
+  };
+  ws.onmessage=e=>handleMsg(JSON.parse(e.data));
+  ws.onclose=()=>{if(gameDiv.style.display!=='none'){notify('Desconectado.',true);}};
+}
+
+function send(obj){if(ws&&ws.readyState===1)ws.send(JSON.stringify(obj));}
+
+function backToMenu(){
+  send({type:'disconnect'});
+  dead=false;
+  myHp=100;myArmor=0;myAmmoInv={};myMoney=0;myKills=0;
+  myWeapon='fists';myGangId=null;myGangColor=null;
+  curr={P:[],Z:[],B:[],D:[],G:[],day:true,dayProg:0};
+  prev={P:[],Z:[],B:[],D:[]};
+  gangs=[];walls=[];trees=[];buildings=[];
+  document.getElementById('death').classList.remove('open');
+  document.getElementById('shop').classList.remove('open');
+  document.getElementById('gang-modal').classList.remove('open');
+  shopOpen=false;gangModalOpen=false;
+  gameDiv.style.display='none';
+  lobby.style.display='flex';
+}
+
+document.getElementById('back-btn').onclick=backToMenu;
+document.getElementById('menu-btn-death').onclick=backToMenu;
+
+// ── Messages ───────────────────────────────────────────────────
+function handleMsg(msg){
+  switch(msg.type){
+    case 'init':
+      myId=msg.id;MAP_W=msg.mapW;MAP_H=msg.mapH;
+      walls=msg.walls;trees=msg.trees;buildings=msg.buildings;
+      serverWeapons=msg.weapons;serverSkins=msg.skins;serverAmmoTypes=msg.ammoTypes||{};
+      myHp=msg.hp;myAmmoInv=msg.ammoInv||{};myArmor=msg.armor;myMoney=msg.money;
+      gangs=msg.gangs||[];
+      updateHUD();renderGangList();buildColorPicker();
+      // Preload weapon images
+      Object.keys(serverWeapons).forEach(k=>getWeaponImg(k));
+      break;
+    case 'S':
+      prev={P:[...curr.P],Z:[...curr.Z],B:[...curr.B],D:[...curr.D]};
+      curr=msg;gangs=msg.G||gangs;
+      lastTickTime=performance.now();
+      const me=curr.P.find(p=>p.i===myId);
+      if(me){myKills=me.k;myBuildingId=me.bld;}
+      updateScoreboard();renderGangList();updateDayHUD(msg.day,msg.dayProg);
+      break;
+    case 'hit':
+      myHp=msg.hp;myArmor=msg.armor;updateHUD();flashRed();break;
+    case 'regen':
+      myHp=msg.hp;updateHUD();break;
+    case 'reward':
+      myMoney=msg.total;updateHUD();
+      if(msg.pvp)notify(`⚔ +$${msg.money} kill PvP!`,false,true);
+      break;
+    case 'ammoUpdate':
+      myAmmoInv=msg.ammoInv;updateAmmoInv();updateWeaponBar();break;
+    case 'noAmmo':
+      showNoAmmo();break;
+    case 'pickup':
+      if(msg.item==='health')myHp=msg.hp;
+      if(msg.item==='armor')myArmor=msg.armor;
+      if(msg.ammoInv)myAmmoInv=msg.ammoInv;
+      updateHUD();updateAmmoInv();
+      const icons={health:'💊',armor:'🛡'};
+      if(msg.item==='health'||msg.item==='armor')notify(`${icons[msg.item]} +${msg.val} ${msg.item}`);
+      else notify(`🔫 +${msg.val} ${AMMO_SHORT[msg.item]||msg.item}`);
+      break;
+    case 'nearWeapon':
+      pendingDropId=msg.dropId;
+      document.getElementById('pickup-name').textContent=msg.name;
+      document.getElementById('pickup-prompt').style.display='block';
+      break;
+    case 'clearPickup':
+      pendingDropId=null;
+      document.getElementById('pickup-prompt').style.display='none';
+      break;
+    case 'weaponPickedUp':
+      myWeapon=msg.weapon;myAmmoInv=msg.ammoInv;
+      updateWeaponBar();updateAmmoInv();
+      document.getElementById('pickup-prompt').style.display='none';
+      notify(`🔫 Pegou: ${msg.name}`);
+      break;
+    case 'playerDied':
+      if(msg.id===myId){
+        dead=true;
+        document.getElementById('death').classList.add('open');
+        document.getElementById('death-info').textContent=
+          typeof msg.killer==='string'&&msg.killer!=='zombie'
+            ?`Eliminado por ${msg.killer} • ${myKills} kills`
+            :`Devorado pelos zumbis • ${myKills} kills`;
+      }else notify(`💀 ${msg.name} ${msg.killer!=='zombie'?'eliminado por '+msg.killer:'foi devorado'}`,true);
+      break;
+    case 'respawned':
+      dead=false;myHp=msg.hp;myAmmoInv=msg.ammoInv;myArmor=msg.armor;myWeapon=msg.weapon||'fists';
+      document.getElementById('death').classList.remove('open');
+      updateHUD();updateWeaponBar();updateAmmoInv();break;
+    case 'gangCreated':
+      myGangId=msg.gangId;myGangColor=msg.gang.c;updateGangUI();notify(`⚔ Gangue criada!`);break;
+    case 'gangJoined':
+      myGangId=msg.gangId;myGangColor=msg.gangColor;updateGangUI();notify(`⚔ Entrou em ${msg.gangName}`);break;
+    case 'gangLeft':
+      myGangId=null;myGangColor=null;updateGangUI();break;
+    case 'gangUpdate':
+      gangs=msg.gangs||[];renderGangList();updateGangUI();break;
+    case 'skinBought':
+      myMoney=msg.money;myUnlockedSkins=msg.unlockedSkins;mySkin=msg.skin;
+      updateHUD();renderShop();notify(`🎨 Skin equipada!`,false,true);break;
+    case 'skinEquipped':
+      mySkin=msg.skin;renderShop();break;
+    case 'err':notify(msg.msg,true);break;
+    case 'phase':showPhaseMsg(msg.msg,msg.isDay);break;
+    case 'playerJoined':notify(`🟢 ${msg.name||'Jogador'} entrou`);break;
+    case 'playerLeft':notify(`🔴 Jogador saiu`);break;
+  }
+}
+
+// ── Input ──────────────────────────────────────────────────────
+const KMAP={w:'up',a:'left',s:'down',d:'right',ArrowUp:'up',ArrowLeft:'left',ArrowDown:'down',ArrowRight:'right'};
+let inputDirty=false,lastInputSent='';
+
+window.addEventListener('keydown',e=>{
+  if(shopOpen||gangModalOpen)return;
+  if(KMAP[e.key]){keys[KMAP[e.key]]=true;inputDirty=true;}
+  if(e.key==='f'||e.key==='F'){if(pendingDropId)send({type:'pickupWeapon',dropId:pendingDropId});}
+  if(e.key==='g'||e.key==='G')openGangModal();
+  if(e.key==='b'||e.key==='B')toggleShop();
+  if(e.key==='Escape'){if(shopOpen)toggleShop();if(gangModalOpen)closeGangModal();}
+});
+window.addEventListener('keyup',e=>{if(KMAP[e.key]){keys[KMAP[e.key]]=false;inputDirty=true;}});
+
+canvas.addEventListener('mousemove',e=>{
+  const me=curr.P.find(p=>p.i===myId);if(!me)return;
+  aimAngle=Math.atan2(e.clientY-(me.y-camY),e.clientX-(me.x-camX));
+  inputDirty=true;
+});
+canvas.addEventListener('mousedown',e=>{if(e.button===0){mouseDown=true;tryShoot();}});
+canvas.addEventListener('mouseup',e=>{if(e.button===0)mouseDown=false;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+setInterval(()=>{
+  if(!ws||dead||shopOpen||gangModalOpen)return;
+  if(mouseDown)tryShoot();
+  if(inputDirty){send({type:'input',keys,aim:aimAngle,shoot:false});inputDirty=false;}
+},50);
+
+function tryShoot(){
+  if(!ws||dead)return;
+  const now=Date.now();
+  const wpn=serverWeapons[myWeapon]||{cd:12};
+  if(now-lastShot<(wpn.cd||12)*50)return;
+  lastShot=now;
+  send({type:'input',keys,aim:aimAngle,shoot:true});
+}
+
+// ── HUD ────────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('hp-f').style.width=Math.max(0,myHp)+'%';
+  document.getElementById('hp-v').textContent=Math.max(0,myHp);
+  document.getElementById('ar-f').style.width=Math.max(0,myArmor)+'%';
+  document.getElementById('ar-v').textContent=Math.max(0,myArmor);
+  document.getElementById('money-hud').textContent='$'+myMoney;
+  if(shopOpen)document.getElementById('shop-bal').textContent='$'+myMoney;
+}
+function updateDayHUD(isDay,prog){
+  const el=document.getElementById('day-hud');
+  const bar=document.getElementById('phase-bar');
+  el.textContent=isDay?'🌅 DIA':'🌙 NOITE';
+  el.style.color=isDay?'#ffeaa7':'#a29bfe';
+  bar.style.width=(prog*100)+'%';
+  bar.style.background=isDay?'#ffeaa7':'#a29bfe';
+}
+function updateWeaponBar(){
+  const wpn=serverWeapons[myWeapon];
+  const nameEl=document.getElementById('weapon-name');
+  const imgEl=document.getElementById('weapon-img');
+  const infoEl=document.getElementById('ammo-info');
+  nameEl.textContent=wpn?wpn.name:'PUNHOS';
+  if(wpn&&!wpn.melee){
+    const img=getWeaponImg(myWeapon);
+    if(img.complete&&img.naturalWidth>0){imgEl.src=img.src;imgEl.style.display='block';}
+    else{img.onload=()=>{imgEl.src=img.src;imgEl.style.display='block';};imgEl.style.display='none';}
+    const ammoType=wpn.ammoType;
+    const have=myAmmoInv[ammoType]||0;
+    infoEl.innerHTML=`<span class="ammo-line" style="color:${have>0?'#f0c040':'#cc3333'}">${have} ${AMMO_SHORT[ammoType]||''}</span>`;
+  }else{imgEl.style.display='none';infoEl.innerHTML='';}
+}
+function updateAmmoInv(){
+  const el=document.getElementById('ammo-inv-list');
+  const entries=Object.entries(serverAmmoTypes||{});
+  if(!entries.length){el.innerHTML='';return;}
+  el.innerHTML=entries.map(([k,v])=>{
+    const have=myAmmoInv[k]||0;
+    return `<div class="ai-row"><span class="ai-name">${AMMO_SHORT[k]||k}</span><span class="ai-count ${have>0?'has':''}">${have}</span></div>`;
+  }).join('');
+}
+function updateScoreboard(){
+  const sorted=[...curr.P].sort((a,b)=>b.k-a.k);
+  document.getElementById('sb-list').innerHTML=sorted.map(p=>{
+    const isMe=p.i===myId,isDead=p.h<=0;
+    const col=getGangColor(p.g);
+    return `<div class="sr ${isMe?'me':''} ${isDead?'dead':''}">
+      <span class="sn" style="color:${col}">${p.n.slice(0,11)}</span>
+      <span style="color:#333">${p.k}💀</span></div>`;
+  }).join('');
+}
+function getGangColor(gid){const g=gangs.find(g=>g.i===gid);return g?g.c:'#555';}
+function renderGangList(){
+  const el=document.getElementById('gang-list');
+  el.innerHTML=gangs.map(g=>
+    `<div class="gang-row" onclick="joinGang('${g.i}')">
+      <span style="color:${g.c};font-size:.7rem">${g.n.slice(0,12)}</span>
+      <span style="color:#2a2a2a">${g.m}👤</span>
+    </div>`).join('');
+  if(!gangs.length)el.innerHTML='<div style="color:#1e1e1e;font-size:.62rem">Nenhuma gangue</div>';
+}
+function updateGangUI(){
+  const info=document.getElementById('my-gang-info');
+  const leaveBtn=document.getElementById('leave-gang-btn');
+  if(myGangId){
+    const g=gangs.find(g=>g.i===myGangId);
+    info.textContent=g?`⚔ ${g.n}`:'Gangue';
+    info.style.color=myGangColor||'#aaa';
+    leaveBtn.style.display='';
+  }else{info.textContent='Sem gangue';info.style.color='#2a2a2a';leaveBtn.style.display='none';}
+}
+window.joinGang=function(id){if(id!==myGangId)send({type:'joinGang',gangId:id});};
+document.getElementById('leave-gang-btn').onclick=()=>send({type:'leaveGang'});
+
+// ── Gang modal ─────────────────────────────────────────────────
+document.getElementById('create-gang-btn').onclick=openGangModal;
+document.getElementById('cancel-gang-btn').onclick=closeGangModal;
+document.getElementById('confirm-gang-btn').onclick=()=>{
+  const name=document.getElementById('gang-name-input').value.trim();
+  if(!name){notify('Digite o nome!',true);return;}
+  send({type:'createGang',name,color:selectedColor});
+  closeGangModal();
+};
+function openGangModal(){gangModalOpen=true;document.getElementById('gang-modal').classList.add('open');}
+function closeGangModal(){gangModalOpen=false;document.getElementById('gang-modal').classList.remove('open');}
+function buildColorPicker(){
+  document.getElementById('color-picker').innerHTML=PRESET_COLORS.map((c,i)=>
+    `<div class="cpick ${i===0?'sel':''}" style="background:${c}" onclick="selColor('${c}',this)"></div>`).join('');
+}
+window.selColor=function(c,el){selectedColor=c;document.querySelectorAll('.cpick').forEach(e=>e.classList.remove('sel'));el.classList.add('sel');};
+
+// ── Shop ───────────────────────────────────────────────────────
+document.getElementById('shop-btn').onclick=toggleShop;
+document.getElementById('close-shop').onclick=toggleShop;
+function toggleShop(){
+  shopOpen=!shopOpen;
+  document.getElementById('shop').classList.toggle('open',shopOpen);
+  if(shopOpen){renderShop();document.getElementById('shop-bal').textContent='$'+myMoney;}
+}
+function renderShop(){
+  document.getElementById('skin-grid').innerHTML=Object.entries(serverSkins).map(([k,s])=>{
+    const owned=myUnlockedSkins.includes(k);
+    const equipped=mySkin===k;
+    return `<div class="skin-card ${owned?'owned':''} ${equipped?'equipped':''}" onclick="shopBuy('${k}')">
+      <div class="skin-dot" style="background:${s.color};border-color:${s.color}44"></div>
+      <div class="skin-name">${s.name}</div>
+      <div class="skin-cost">${s.cost===0?'GRÁTIS':'$'+s.cost}</div>
+      ${equipped?'<div class="skin-tag">EQUIPADO</div>':owned?'<div class="skin-tag" style="background:#1e90ff">DONO</div>':''}
+    </div>`;
+  }).join('');
+}
+window.shopBuy=function(k){
+  send(myUnlockedSkins.includes(k)?{type:'equipSkin',skin:k}:{type:'buySkin',skin:k});
+};
+
+// ── Phase + Notifs ─────────────────────────────────────────────
+function showPhaseMsg(text,isDay){
+  const el=document.getElementById('phase-msg');
+  el.textContent=text;el.style.color=isDay?'#ffeaa7':'#c8a2ff';
+  el.style.opacity='1';setTimeout(()=>el.style.opacity='0',3500);
+}
+let noAmmoTimeout;
+function showNoAmmo(){
+  const el=document.getElementById('no-ammo-flash');
+  el.style.opacity='1';clearTimeout(noAmmoTimeout);
+  noAmmoTimeout=setTimeout(()=>el.style.opacity='0',900);
+}
+function notify(text,bad=false,gold=false){
+  const el=document.createElement('div');
+  el.className='nm'+(bad?' bad':gold?' gold':'');
+  el.textContent=text;
+  document.getElementById('notif').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+let flashAlpha=0;
+function flashRed(){flashAlpha=0.35;}
+document.getElementById('respawn-btn').onclick=()=>send({type:'respawn'});
+
+// ── Grass tile generator ───────────────────────────────────────
+let grassPat=null;
+function makeGrassPat(){
+  if(grassPat)return grassPat;
+  const c=document.createElement('canvas');c.width=64;c.height=64;
+  const x=c.getContext('2d');
+  // Base grass color
+  x.fillStyle='#2d5a1b';x.fillRect(0,0,64,64);
+  // Subtle variation
+  for(let i=0;i<40;i++){
+    x.fillStyle=`rgba(${Math.random()>0.5?60:20},${80+Math.floor(Math.random()*30)},${Math.floor(Math.random()*15)},0.3)`;
+    x.fillRect(Math.random()*64,Math.random()*64,2+Math.random()*4,2+Math.random()*4);
+  }
+  grassPat=ctx.createPattern(c,'repeat');
+  return grassPat;
+}
+
+// ── Render ─────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function lerpE(pA,cA,t){
+  const map={};
+  for(const c of cA){const p=pA.find(x=>x.i===c.i);map[c.i]=p?{...c,x:lerp(p.x,c.x,t),y:lerp(p.y,c.y,t)}:c;}
+  return Object.values(map);
+}
+
+const DROP_COLOR={pistol:'#ccc',shotgun:'#e17055',rifle:'#74b9ff',smg:'#55efc4',sniper:'#fd79a8',uzi:'#a29bfe',
+  pistol_ammo:'#ccc',shotgun_ammo:'#e17055',rifle_ammo:'#74b9ff',smg_ammo:'#55efc4',sniper_ammo:'#fd79a8',
+  health_sm:'#e74c3c',health_lg:'#c0392b',armor_sm:'#3498db',armor_lg:'#2980b9'};
+const DROP_LABEL={pistol:'🔫',shotgun:'🔫',rifle:'🔫',smg:'🔫',sniper:'🔫',
+  pistol_ammo:'•',shotgun_ammo:'•',rifle_ammo:'•',smg_ammo:'•',sniper_ammo:'•',
+  health_sm:'💊',health_lg:'💊',armor_sm:'🔵',armor_lg:'🔷'};
+
+function drawDrop(d){
+  const isWeapon=!!serverWeapons[d.t]&&!serverWeapons[d.t]?.melee;
+  const col=DROP_COLOR[d.t]||'#aaa';
+  const pulse=0.75+0.25*Math.sin(Date.now()/450+d.i);
+  ctx.save();
+  ctx.globalAlpha=pulse;
+  if(isWeapon){
+    // Try to draw PNG
+    const img=wpnImgs[d.t];
+    if(img&&img.complete&&img.naturalWidth>0){
+      ctx.save();
+      ctx.translate(d.x,d.y);
+      ctx.shadowColor=col;ctx.shadowBlur=10;
+      ctx.drawImage(img,d.x-20,d.y-10,40,20);
+      ctx.restore();
+    }else{
+      ctx.shadowColor=col;ctx.shadowBlur=10;
+      ctx.fillStyle=col;
+      ctx.font='14px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('🔫',d.x,d.y);
+    }
+    // Glow ring
+    ctx.strokeStyle=col+'88';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(d.x,d.y,16,0,Math.PI*2);ctx.stroke();
+  }else{
+    ctx.shadowColor=col;ctx.shadowBlur=8;
+    ctx.font='14px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(DROP_LABEL[d.t]||'?',d.x,d.y);
+    if(d.t.endsWith('_ammo')){
+      ctx.fillStyle=col;ctx.beginPath();ctx.arc(d.x,d.y,5,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawTree(t){
+  ctx.save();
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();ctx.ellipse(t.x+4,t.y+6,t.r*0.7,t.r*0.4,0,0,Math.PI*2);ctx.fill();
+  // Trunk
+  ctx.fillStyle='#5c3d1e';
+  ctx.fillRect(t.x-3,t.y,6,10);
+  // Canopy
+  ctx.fillStyle='#1e5c0f';
+  ctx.beginPath();ctx.arc(t.x,t.y-2,t.r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#2a7a14';
+  ctx.beginPath();ctx.arc(t.x-t.r*0.2,t.y-t.r*0.2,t.r*0.7,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+function drawBuilding(b,playerInside){
+  ctx.save();
+  // Floor
+  ctx.fillStyle='#c8b99a';
+  ctx.fillRect(b.x,b.y,b.w,b.h);
+  // Floor detail
+  ctx.fillStyle='#bfaa8a';
+  for(let fx=b.x+16;fx<b.x+b.w-8;fx+=32){
+    for(let fy=b.y+16;fy<b.y+b.h-8;fy+=32){
+      ctx.fillRect(fx,fy,28,28);
+    }
+  }
+  ctx.restore();
+}
+
+function drawBuildingWalls(){
+  for(const w of walls){
+    ctx.fillStyle='#6b5a3e';ctx.fillRect(w.x,w.y,w.w,w.h);
+    ctx.strokeStyle='#4a3d2a';ctx.lineWidth=1;ctx.strokeRect(w.x,w.y,w.w,w.h);
+  }
+}
+
+function drawPlayer(p,isMe){
+  if(p.h<=0){
+    ctx.save();ctx.globalAlpha=0.3;
+    ctx.font='18px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('💀',p.x,p.y);ctx.restore();return;
+  }
+  const gangCol=getGangColor(p.g);
+  const skinCol=serverSkins[p.sk]?serverSkins[p.sk].color:'#dfe6e9';
+  const aim=isMe?aimAngle:(p.aim||0);
+
+  ctx.save();
+  // Shadow on ground
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();ctx.ellipse(p.x+2,p.y+4,PR*0.8,PR*0.4,0,0,Math.PI*2);ctx.fill();
+
+  // Gang ring
+  if(p.g){
+    ctx.beginPath();ctx.arc(p.x,p.y,PR+4,0,Math.PI*2);
+    ctx.strokeStyle=gangCol+'88';ctx.lineWidth=2.5;ctx.stroke();
+  }
+
+  // Body
+  ctx.beginPath();ctx.arc(p.x,p.y,PR,0,Math.PI*2);
+  ctx.fillStyle=skinCol;ctx.fill();
+  ctx.strokeStyle=isMe?'rgba(255,255,255,0.6)':'rgba(0,0,0,0.4)';
+  ctx.lineWidth=isMe?1.5:1;ctx.stroke();
+
+  // Eyes
+  const ex=p.x+Math.cos(aim)*(PR*0.45);
+  const ey=p.y+Math.sin(aim)*(PR*0.45);
+  ctx.fillStyle='#000';
+  ctx.beginPath();ctx.arc(ex-Math.sin(aim)*3.5,ey+Math.cos(aim)*3.5,2,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(ex+Math.sin(aim)*3.5,ey-Math.cos(aim)*3.5,2,0,Math.PI*2);ctx.fill();
+
+  // Weapon
+  const wpn=serverWeapons[p.w];
+  if(wpn&&!wpn.melee){
+    const wpnImg=wpnImgs[p.w];
+    if(wpnImg&&wpnImg.complete&&wpnImg.naturalWidth>0){
+      ctx.save();
+      ctx.translate(p.x,p.y);ctx.rotate(aim);
+      const iw=32,ih=16;
+      ctx.drawImage(wpnImg,PR+2,-ih/2,iw,ih);
+      ctx.restore();
+    }else{
+      // Fallback rectangle
+      const gl=PR+3,gw=wpn.name==='Sniper'?18:wpn.name==='Rifle'?14:10;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(aim);
+      ctx.fillStyle=wpn.color||'#aaa';
+      ctx.fillRect(gl,-2,gw,4);
+      ctx.restore();
+    }
+  }else if(!wpn||wpn.melee){
+    ctx.save();ctx.translate(p.x,p.y);ctx.rotate(aim);
+    ctx.fillStyle='#999';ctx.beginPath();ctx.arc(PR+3,0,4,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
+  // Name tag
+  ctx.shadowBlur=0;
+  ctx.font='bold 10px "Share Tech Mono"';
+  const tw=ctx.measureText(p.n).width;
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(p.x-tw/2-3,p.y-PR-16,tw+6,12);
+  ctx.fillStyle=isMe?'#fff':gangCol!=='#555'?gangCol:'#ccc';
+  ctx.textAlign='center';ctx.textBaseline='bottom';
+  ctx.fillText(p.n,p.x,p.y-PR-4);
+
+  // HP bar
+  ctx.fillStyle='#111';ctx.fillRect(p.x-PR,p.y+PR+3,PR*2,3);
+  ctx.fillStyle=p.h>50?'#2ecc71':p.h>25?'#f39c12':'#e74c3c';
+  ctx.fillRect(p.x-PR,p.y+PR+3,PR*2*(p.h/100),3);
+
+  ctx.restore();
+}
+
+function draw(){
+  const W=canvas.width,H=canvas.height;
+  const now=performance.now();
+  const t=Math.min(1,(now-lastTickTime)/TICK_MS);
+  const isDay=curr.day;
+
+  const iP=lerpE(prev.P,curr.P,t);
+  const iZ=lerpE(prev.Z,curr.Z,t);
+  const iB=lerpE(prev.B,curr.B,t);
+
+  const me=iP.find(p=>p.i===myId);
+  if(me){camX=lerp(camX,me.x-W/2,0.1);camY=lerp(camY,me.y-H/2,0.1);}
+  camX=Math.max(0,Math.min(MAP_W-W,camX));
+  camY=Math.max(0,Math.min(MAP_H-H,camY));
+
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  ctx.translate(-camX,-camY);
+
+  // ── Grass background ──────────────────────────────────────
+  ctx.fillStyle=makeGrassPat();
+  ctx.fillRect(camX,camY,W,H);
+
+  // Map border (out of bounds — darker)
+  ctx.fillStyle='rgba(0,0,0,0.4)';
+  if(camX<0)ctx.fillRect(camX,camY,-camX,H);
+  if(camY<0)ctx.fillRect(camX,camY,W,-camY);
+
+  ctx.strokeStyle='#1a3d0a';ctx.lineWidth=4;
+  ctx.strokeRect(0,0,MAP_W,MAP_H);
+
+  // ── Building floors (draw under everything) ────────────────
+  for(const b of buildings){
+    drawBuilding(b);
+  }
+
+  // ── Gang bases ─────────────────────────────────────────────
+  for(const g of gangs){
+    if(!g.base)continue;
+    const {x,y,r}=g.base;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=g.c+'0d';ctx.fill();
+    ctx.strokeStyle=g.c+'44';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font='bold 11px "Share Tech Mono"';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle=g.c+'88';ctx.fillText(g.n,x,y+r-14);
+    ctx.font='18px serif';ctx.fillText('🏠',x,y);
+  }
+
+  // ── Drops ──────────────────────────────────────────────────
+  for(const d of curr.D||[])drawDrop(d);
+
+  // ── Bullets ────────────────────────────────────────────────
+  for(const b of iB){
+    ctx.save();
+    ctx.fillStyle=b.c||'#ffe066';ctx.shadowColor=b.c||'#ffcc00';ctx.shadowBlur=7;
+    ctx.beginPath();ctx.arc(b.x,b.y,BR,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Zombies ────────────────────────────────────────────────
+  for(const z of iZ){
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.beginPath();ctx.ellipse(z.x+2,z.y+4,ZR*0.8,ZR*0.4,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(z.x,z.y,ZR,0,Math.PI*2);
+    ctx.fillStyle='#1a3d17';ctx.fill();
+    ctx.strokeStyle='#254d20';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#cc0000';ctx.shadowColor='#ff0000';ctx.shadowBlur=4;
+    ctx.beginPath();ctx.arc(z.x-5,z.y-5,2.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(z.x+5,z.y-5,2.5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#111';ctx.fillRect(z.x-ZR,z.y-ZR-8,ZR*2,3);
+    ctx.fillStyle='#39ff14';ctx.fillRect(z.x-ZR,z.y-ZR-8,ZR*2*(z.h/z.m),3);
+    ctx.restore();
+  }
+
+  // ── Players (outside buildings, or same building) ──────────
+  for(const p of iP){
+    // If player is inside a building, only show if I'm also inside the same building
+    if(p.bld!==undefined&&p.bld!==null){
+      if(p.bld!==myBuildingId)continue;
+    }
+    drawPlayer(p,p.i===myId);
+  }
+
+  // ── Wall geometry ──────────────────────────────────────────
+  drawBuildingWalls();
+
+  // ── Trees (drawn on top of walls for depth) ────────────────
+  for(const t of trees)drawTree(t);
+
+  // ── Building interior fog ──────────────────────────────────
+  // If I'm inside a building, darken everything outside it
+  if(myBuildingId!==null&&myBuildingId!==undefined){
+    const b=buildings.find(b=>b.id===myBuildingId);
+    if(b){
+      ctx.save();
+      ctx.fillStyle='rgba(0,0,0,0.72)';
+      // Fill entire visible area then cut out the building interior
+      ctx.beginPath();
+      ctx.rect(camX,camY,W,H);
+      ctx.rect(b.x+8,b.y+8,b.w-16,b.h-16); // hole = interior
+      ctx.fill('evenodd');
+      ctx.restore();
+    }
+  }
+
+  // ── Night darkness ─────────────────────────────────────────
+  if(!isDay){
+    const darkness=0.28+curr.dayProg*0.22;
+    const grad=ctx.createRadialGradient(camX+W/2,camY+H/2,H*.3,camX+W/2,camY+H/2,H*.72);
+    grad.addColorStop(0,`rgba(4,0,12,0)`);grad.addColorStop(1,`rgba(4,0,12,${darkness})`);
+    ctx.fillStyle=grad;ctx.fillRect(camX,camY,W,H);
+  }
+
+  ctx.restore();
+
+  // Flash
+  if(flashAlpha>0){ctx.fillStyle=`rgba(200,0,0,${flashAlpha})`;ctx.fillRect(0,0,W,H);flashAlpha=Math.max(0,flashAlpha-0.025);}
+
+  // Vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.72);
+  vig.addColorStop(0,'rgba(0,0,0,0)');vig.addColorStop(1,'rgba(0,0,0,0.45)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+
+  drawMinimap(iP);
+}
+
+function drawMinimap(iP){
+  const mw=mmCanvas.width,mh=mmCanvas.height;
+  const sx=mw/MAP_W,sy=mh/MAP_H;
+  // Grass bg
+  mmCtx.fillStyle=curr.day?'#2d5a1b':'#1a3d10';
+  mmCtx.fillRect(0,0,mw,mh);
+  // Buildings
+  mmCtx.fillStyle=curr.day?'#c8b99a':'#8a7a66';
+  for(const b of buildings)mmCtx.fillRect(b.x*sx,b.y*sy,b.w*sx,b.h*sy);
+  // Gang bases
+  for(const g of gangs){
+    if(!g.base)continue;
+    mmCtx.strokeStyle=g.c+'66';mmCtx.lineWidth=1;
+    mmCtx.beginPath();mmCtx.arc(g.base.x*sx,g.base.y*sy,g.base.r*sx,0,Math.PI*2);mmCtx.stroke();
+  }
+  // My dot only
+  const me=iP.find(p=>p.i===myId);
+  if(me){
+    mmCtx.strokeStyle='rgba(255,255,255,0.12)';mmCtx.lineWidth=1;
+    mmCtx.strokeRect(camX*sx,camY*sy,canvas.width*sx,canvas.height*sy);
+    mmCtx.fillStyle=myGangColor||'#ffffff';
+    mmCtx.beginPath();mmCtx.arc(me.x*sx,me.y*sy,4,0,Math.PI*2);mmCtx.fill();
+    mmCtx.strokeStyle=myGangColor||'#ffffff';mmCtx.lineWidth=1;
+    mmCtx.beginPath();mmCtx.moveTo(me.x*sx,me.y*sy);
+    mmCtx.lineTo(me.x*sx+Math.cos(aimAngle)*6,me.y*sy+Math.sin(aimAngle)*6);
+    mmCtx.stroke();
+  }
+  mmCtx.strokeStyle='#1a3d0a';mmCtx.lineWidth=1;mmCtx.strokeRect(0,0,mw,mh);
+}
+
+function loop(){draw();requestAnimationFrame(loop);}
+</script>
+</body>
+</html>
